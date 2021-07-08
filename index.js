@@ -1,26 +1,13 @@
-const mysql = require('mysql');
 const inquirer = require('inquirer');
-
-// create the connection information for the sql database
-const connection = mysql.createConnection({
-    host: 'localhost',
-
-    // Your port; if not 3306
-    port: 3306,
-
-    // Your username
-    user: 'root',
-
-    // Your password
-    password: 'Sebit@s0220',
-    database: 'employees_db',
-});
+require('console.table');
+const db = require('./db');
+const { listenerCount } = require('./db/connection');
 
 // function which prompts the user for what action they should take
 const start = () => {
     inquirer
         .prompt({
-            name: 'INPUT',
+            name: 'input',
             type: 'list',
             message: 'What would you like to do?',
             choices: ['VIEW ALL EMPLOYEES', 'ADD EMPLOYEE', 'UPDATE EMPLOYEE ROLE', 'VIEW DEPARTMENTS', 'ADD DEPARTMENT', 'VIEW ROLES', 'ADD ROLE', 'EXIT'],
@@ -31,8 +18,10 @@ const start = () => {
                 viewEmployees();
             } else if (answer.input === 'ADD EMPLOYEE') {
                 addEmployee();
-            } else if (answer.input === 'UPDATE EMPLOYEE ROLE') {
+            } else if (answer.input === 'UPDATE EMPLOYEES ROLE') {
                 updateEmployeeRole();
+            } else if (answer.input === 'UPDATE EMPLOYEES MANAGER') {
+                updateEmployeeManager();
             } else if (answer.input === 'VIEW DEPARTMENTS') {
                 viewDepartments();
             } else if (answer.input === 'ADD DEPARTMENT') {
@@ -46,132 +35,188 @@ const start = () => {
             }
         });
 };
+start();
 
-const viewEmployees = () => {
-    connection.query('SELECT employee.first_name, employee.last_name FROM employee', (err, res) => {
-        if (err) throw err;
-        console.table(res);
-        start();
-    })
+// Done
+const viewEmployees = async () => {
+    const employees = await db.findAllEmployees();
+    console.table(employees);
+    start();
+};
+// Done
+const viewRoles = async () => {
+    const roles = await db.findAllRoles();
+    console.table(roles);
+    start();
+};
+// Done
+const viewDepartments = async () => {
+    const department = await db.findAllDepartments();
+    console.table(department);
+    start();
 };
 
 // function to add a new employee
-const addEmployee = () => {
-    inquirer
-        .prompt([
-            {
-                name: 'firstname',
-                type: 'input',
-                message: 'What is the employee\'s first name?',
-            },
-            {
-                name: 'lastname',
-                type: 'input',
-                message: 'What is the employee\'s last name?',
-            },
-            {
-                name: 'roleId',
-                type: 'list',
-                message: 'What is the employee\'s role?',
-                choices() {
-                    const choiceArray = [];
-                    res.forEach(({ id, title }) => {
-                        choiceArray.push({ name: title, value: id });
-                    });
-                    return choiceArray;
-                },
-            },
-        ])
-        .then((answer) => {
-            // when finished prompting, insert a new item into the db with that info
-            connection.query(
-                'INSERT INTO employee SET ?',
-                // QUESTION: What does the || 0 do?
+// Done
+const addEmployee = async () => {
+    const employee = await
+        inquirer
+            .prompt([
                 {
-                    first_name: answer.firstname,
-                    last_name: answer.lastname,
-                    role_id: answer.roleId,
+                    name: 'first_name',
+                    type: 'input',
+                    message: 'What is the employee\'s first name?',
                 },
-                (err) => {
-                    if (err) throw err;
-                    console.log('You have added a new employee successfully!');
-                    // re-prompt the user for if they want to bid or post
-                    start();
-                }
-            );
-        });
+                {
+                    name: 'last_name',
+                    type: 'input',
+                    message: 'What is the employee\'s last name?',
+                },
+            ]);
+
+    const roles = await db.findAllRoles();
+    // console.log('test', roles);
+    const roleChoices = roles.map(({ id, title }) => ({
+        name: title,
+        value: id,
+    }));
+    const { roleId } = await inquirer.prompt({
+        type: 'list',
+        name: 'roleId',
+        message: 'What is the Employee\'s role',
+        choices: roleChoices
+    });
+    // console.log(employee, roleId);
+    const employees = await db.findAllEmployees();
+    employee.role_id = roleId;
+    const managerChoices = employees.map(({ id, first_name, last_name }) => ({
+        name: `${first_name} ${last_name}`,
+        value: id
+    }))
+    managerChoices.unshift({ name: "None", value: null });
+    const { managerId } = await inquirer.prompt({
+        type: 'list',
+        name: 'managerId',
+        message: 'What is the Employee\'s manager',
+        choices: managerChoices
+    });
+    employee.manager_id = managerId;
+    await db.createEmployee(employee);
+    console.log(
+        `Added ${employee.first_name} ${employee.last_name} to the database`
+    );
+    start();
 };
 
-const updateEmployeeRole = () => {
-    connection.query('SELECT * FROM employee', (err, results) => {
-        connection.query('SELECT * FROM role', (err, results) => {
-            inquirer
-                .prompt([
-                    {
-                        name: 'choiceName',
-                        type: 'list',
-                        message: 'What employee would you like to update?',
-                        choices() {
-                            const choiceArray = [];
-                            results.forEach(({ id, first_name }) => {
-                                choiceArray.push({ name: first_name, value: id });
-                            });
-                            return choiceArray;
-                        },
-                    },
-                    {
-                        name: 'choiceRole',
-                        type: 'list',
-                        message: 'What is the new role?',
-                        choices() {
-                            const choiceArray = [];
-                            results.forEach(({ id, title }) => {
-                                choiceArray.push({ name: title, value: id });
-                            });
-                            return choiceArray;
-                        }
-                    },
-                ])
-                .then((answer) => {
-                    // get the information of the chosen item
-                    let chosenItem;
-                    results.forEach((item) => {
-                        if (item.item_name === answer.choice) {
-                            chosenItem = item;
-                        }
-                    });
+// Done
+const addDepartment = async () => {
+    const department = await
+        inquirer
+            .prompt([
+                {
+                    type: 'input',
+                    name: 'name',
+                    message: 'What is the department\'s name?'
+                },
+            ]);
+    await db.createDepartment(department);
+    console.log(
+        `Added ${department.name} to the database`
+    );
+    start();
+};
 
-                    // determine if bid was high enough
-                    if (chosenItem.highest_bid < parseInt(answer.bid)) {
-                        // bid was high enough, so update db, let the user know, and start over
-                        connection.query(
-                            'UPDATE auctions SET ? WHERE ?',
-                            [
-                                {
-                                    highest_bid: answer.bid,
-                                },
-                                {
-                                    id: chosenItem.id,
-                                },
-                            ],
-                            (error) => {
-                                if (error) throw err;
-                                console.log('Bid placed successfully!');
-                                start();
-                            }
-                        );
-                    } else {
-                        // bid wasn't high enough, so apologize and start over
-                        console.log('Your bid was too low. Try again...');
-                        start();
-                    }
-                });
-        });
-    }
+// Done
+const addRole = async () => {
+    const departments = await db.findAllDepartments();
+    const departmentChoices = departments.map(({ id, name }) => ({
+        name: name, value: id
+    }))
+    const role = await
+        inquirer
+            .prompt([
+                {
+                    type: 'input',
+                    name: 'title',
+                    message: 'What is the role\'s name?'
+                },
+                {
+                    type: 'input',
+                    name: 'salary',
+                    message: 'What is the role\'s salary?'
+                },
+                {
+                    type: 'list',
+                    name: 'department_id',
+                    message: 'Which department does the role belong to?',
+                    choices: departmentChoices
+                }
+            ]);
+    await db.createRole(role);
+    console.log(
+        `Added ${role.title} to the database`
+    );
+    start();
+};
 
-    // connect to the mysql server and sql database
-    connection.connect((err) => {
-        if (err) throw err;
-        // run the start function after the connection is made to prompt the user
-        start();
+const updateEmployeeRole = async () => {
+    const employees = await db.findAllEmployees();
+    const employeeChoices = employees.map(({ id, first_name, last_name }) => ({
+        name: first_name + ' ' + last_name, value: id
+    }));
+    const { employeeId } = await
+        inquirer
+            .prompt([
+                {
+                    type: 'list',
+                    name: 'employeeId',
+                    message: 'What employee would you like to update?',
+                    choices: employeeChoices
+                },
+            ]);
+    const roles = await db.findAllRoles();
+    // console.log('test', roles);
+    const roleChoices = roles.map(({ id, title }) => ({
+        name: title,
+        value: id,
+    }));
+    const { roleId } = await inquirer.prompt({
+        type: 'list',
+        name: 'roleId',
+        message: 'What is the Employee\'s new role',
+        choices: roleChoices
     });
+    await db.updateEmployeeRole(employeeId, roleId);
+    console.log('Updated employee\s role');
+    start();
+};
+
+const updateEmployeeManager = async () => {
+    const employees = await db.findAllEmployees();
+    const employeeChoices = employees.map(({ id, first_name, last_name }) => ({
+        name: first_name + ' ' + last_name, value: id
+    }));
+    const { employeeId } = await
+        inquirer
+            .prompt([
+                {
+                    type: 'list',
+                    name: 'employeeId',
+                    message: 'What employee would you like to update?',
+                    choices: employeeChoices
+                },
+            ]);
+    const manager = await db.findAllPossibleManagers(employeeId);
+    const managerChoices = manager.map(({ id, first_name, last_name }) => ({
+        name: first_name + ' ' + last_name, value: id
+    }));
+    const { managerId } = await inquirer.prompt({
+        type: 'list',
+        name: 'managerId',
+        message: 'Who is the Employee\'s new manager',
+        choices: managerChoices
+    });
+    await db.updateEmployeeManager(employeeId, managerId);
+    console.log('Updated employee\'s role');
+    start();
+};
