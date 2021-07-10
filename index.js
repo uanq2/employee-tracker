@@ -10,7 +10,7 @@ const start = () => {
             name: 'input',
             type: 'list',
             message: 'What would you like to do?',
-            choices: ['VIEW ALL EMPLOYEES', 'ADD EMPLOYEE', 'UPDATE EMPLOYEE ROLE', 'VIEW DEPARTMENTS', 'ADD DEPARTMENT', 'VIEW ROLES', 'ADD ROLE', 'EXIT'],
+            choices: ['VIEW ALL EMPLOYEES', 'ADD EMPLOYEE', 'UPDATE EMPLOYEE ROLE', 'UPDATE EMPLOYEE MANAGER', 'VIEW DEPARTMENTS', 'ADD DEPARTMENT', 'VIEW ROLES', 'ADD ROLE', 'EXIT'],
         })
         .then((answer) => {
             // based on their answer, a selection of options are shown.
@@ -18,9 +18,9 @@ const start = () => {
                 viewEmployees();
             } else if (answer.input === 'ADD EMPLOYEE') {
                 addEmployee();
-            } else if (answer.input === 'UPDATE EMPLOYEES ROLE') {
+            } else if (answer.input === 'UPDATE EMPLOYEE ROLE') {
                 updateEmployeeRole();
-            } else if (answer.input === 'UPDATE EMPLOYEES MANAGER') {
+            } else if (answer.input === 'UPDATE EMPLOYEE MANAGER') {
                 updateEmployeeManager();
             } else if (answer.input === 'VIEW DEPARTMENTS') {
                 viewDepartments();
@@ -31,25 +31,24 @@ const start = () => {
             } else if (answer.input === 'ADD ROLE') {
                 addRole();
             } else {
-                connection.end();
+                process.exit();
             }
         });
 };
 start();
 
-// Done
 const viewEmployees = async () => {
     const employees = await db.findAllEmployees();
     console.table(employees);
     start();
 };
-// Done
+
 const viewRoles = async () => {
     const roles = await db.findAllRoles();
     console.table(roles);
     start();
 };
-// Done
+
 const viewDepartments = async () => {
     const department = await db.findAllDepartments();
     console.table(department);
@@ -57,7 +56,6 @@ const viewDepartments = async () => {
 };
 
 // function to add a new employee
-// Done
 const addEmployee = async () => {
     const employee = await
         inquirer
@@ -75,7 +73,6 @@ const addEmployee = async () => {
             ]);
 
     const roles = await db.findAllRoles();
-    // console.log('test', roles);
     const roleChoices = roles.map(({ id, title }) => ({
         name: title,
         value: id,
@@ -86,7 +83,7 @@ const addEmployee = async () => {
         message: 'What is the Employee\'s role',
         choices: roleChoices
     });
-    // console.log(employee, roleId);
+
     const employees = await db.findAllEmployees();
     employee.role_id = roleId;
     const managerChoices = employees.map(({ id, first_name, last_name }) => ({
@@ -108,7 +105,6 @@ const addEmployee = async () => {
     start();
 };
 
-// Done
 const addDepartment = async () => {
     const department = await
         inquirer
@@ -126,7 +122,6 @@ const addDepartment = async () => {
     start();
 };
 
-// Done
 const addRole = async () => {
     const departments = await db.findAllDepartments();
     const departmentChoices = departments.map(({ id, name }) => ({
@@ -175,7 +170,6 @@ const updateEmployeeRole = async () => {
                 },
             ]);
     const roles = await db.findAllRoles();
-    // console.log('test', roles);
     const roleChoices = roles.map(({ id, title }) => ({
         name: title,
         value: id,
@@ -217,6 +211,6 @@ const updateEmployeeManager = async () => {
         choices: managerChoices
     });
     await db.updateEmployeeManager(employeeId, managerId);
-    console.log('Updated employee\'s role');
+    console.log('Updated employee\'s manager');
     start();
 };
