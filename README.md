@@ -19,6 +19,8 @@ Node.js, Inquirer, mySQL
 
 ## Usage
 
+<img width="1223" alt="Screen Shot 2021-07-10 at 11 34 23 PM" src="https://user-images.githubusercontent.com/68913478/125183037-aa394e80-e1d8-11eb-9816-fd4456a66c74.png">
+
 Check this link to view a walk-through video on how to use this program
 https://drive.google.com/file/d/1tJp9G4Kpw9lQ5Nvs4tCg5SmSn6WfLoK2/view?usp=sharing
 
